@@ -3,16 +3,16 @@
 # =============================================================================
 # See README.md for Cloud Account and IAM policy setup instructions.
 buckets:
-  cloudAccountName: kintsugi-aws-dev   # Name of your configured Cloud Account
+  cloudAccountName: my-cloud-account    # Name of your configured Cloud Account
   awsPolicyRefs:                        # IAM policies for S3 access
-    - manticore_search_s3_bucket_access_policy
-  awsRegion: us-west-2                  # Region of your S3 bucket
-  sourceBucket: manticore-imports               # S3 bucket containing files to import
+    - aws::AmazonS3ReadOnlyAccess       # Note: if using a custom policy, omit the aws:: prefix as this is only for AWS managed policies
+  awsRegion: us-east-1                  # Region of your S3 bucket
+  sourceBucket: my-bucket               # S3 bucket containing files to import
 
 # =============================================================================
 # Tables Configuration
 # =============================================================================
-# See README.md for table structure, column types, and config options.csvPath: manticore-imports/addresses_small.tsv
+# See README.md for table structure, column types, and config options.
 # Add/remove tables as needed.
 tables:
   - name: addresses
@@ -26,6 +26,8 @@ tables:
       hasHeader: true
     schema:
       columns:
+        - name: address_id
+          type: attr_uint
         - name: street_number
           type: attr_uint
         - name: street_name
@@ -44,51 +46,6 @@ tables:
           type: attr_float
         - name: longitude
           type: attr_float
-  - name: addresses_full
-    csvPath: manticore-imports/addresses-full/data.tsv
-    config:
-      haStrategy: noerrors
-      agentRetryCount: 3
-      clusterMain: false
-      importMethod: indexer
-      memLimit: 2G
-      hasHeader: true
-    schema:
-      columns:
-        - name: record_hash
-          type: attr_string
-        - name: number
-          type: attr_string
-        - name: street
-          type: field
-        - name: street2
-          type: field
-        - name: city
-          type: field
-        - name: state
-          type: attr_string
-        - name: country
-          type: attr_string
-        - name: county
-          type: field
-        - name: latitude
-          type: attr_float
-        - name: longitude
-          type: attr_float
-        - name: postal_code
-          type: field
-        - name: address
-          type: field
-        - name: full_address
-          type: field
-        - name: created_at
-          type: attr_timestamp
-        - name: is_unincorporated
-          type: attr_bool
-        - name: source
-          type: attr_string
-        - name: updated_at
-          type: attr_timestamp
 
 # =============================================================================
 # Manticore Search Configuration
@@ -97,7 +54,7 @@ manticore:
   image: manticoresearch/manticore:15.1.0
   clusterName: manticore          # Galera cluster name
   resources:
-    cpu: 2
+    cpu: 4
     memory: 8Gi
   volumeset:
     capacity: 200                 # GB per replica
@@ -121,17 +78,6 @@ manticore:
 
   # IMPORTANT: same-gvc required for Galera replication
   firewall:
-    externalAccess:
-      allowInbound: true            # Set to true to allow external inbound (e.g., Postman)
-      inboundCIDR:
-        - 0.0.0.0/0                 # CIDRs allowed for external inbound (when allowInbound=true)
-      inboundBlockedCIDR: []
-    outboundAccess:
-      allowedHostnames: []            # Hostnames the workload is allowed to reach
-      outboundAllowCIDR:
-        - 0.0.0.0/0
-      outboundAllowPort: []
-      outboundBlockedCIDR: []
     internalAccess:
       type: same-gvc
       workloads: []
@@ -140,7 +86,7 @@ manticore:
 # Orchestrator Configuration
 # =============================================================================
 orchestrator:
-  version: v4.0.0
+  version: v4.6.0
   image: ghcr.io/controlplane-com/manticore-orchestrator/manticore-cpln-api
   logLevel: debug                 # debug, info, warn, error
   resources:
@@ -150,7 +96,7 @@ orchestrator:
   # Cron job settings
   schedule: "0 * * * *"           # Cron schedule (default = every hour)
   action: import                  # init, import, health, repair
-  tableName: addresses_us         # Must match a name in tables[]
+  tableName: addresses            # Must match a name in tables[]
   suspend: true                   # Start suspended (trigger via UI/API)
   timeoutSeconds: 900             # Container timeout (seconds, default 15 minutes)
   importMemLimit: 2G              # Memory limit for import jobs
@@ -158,7 +104,7 @@ orchestrator:
 
   # Orchestrator API
   api:
-    version: v4.0.0
+    version: v4.6.0
     image: ghcr.io/controlplane-com/manticore-orchestrator/manticore-cpln-api
     logLevel: debug
     importPollInterval: 30s
@@ -174,14 +120,10 @@ orchestrator:
 
   # Agent sidecar
   agent:
-    version: v4.0.0
+    version: v4.6.0
     image: ghcr.io/controlplane-com/manticore-orchestrator/manticore-cpln-agent
     # REQUIRED: Generate with `openssl rand -base64 32`
-    # token: "JxI7n1EB1lnafzeAztfjZYbU5eDTn7NMyxENC4PcT+g="
-    # REQUIRED: Supply at install time via environment variable:
-    #   helm install ... --set orchestrator.agent.token=$MANTICORE_AGENT_TOKEN
-    # Generate with: openssl rand -base64 32
-    token: ""
+    token: "6Gl5uO9KkKAh1u+ymoBW98WCtjTFpljuhpLdKb+tNAA="
     resources:
       cpu: 250m
       minCpu: 100m
@@ -196,7 +138,7 @@ orchestrator:
 
   # Web UI - See README.md "Authentication" section for security notes
   ui:
-    version: v4.0.0
+    version: v4.6.0
     image: ghcr.io/controlplane-com/manticore-orchestrator/manticore-cpln-ui
     resources:
       cpu: 0.25
@@ -211,18 +153,18 @@ orchestrator:
   # Backup Configuration (Optional) - Cron job runs logical backup on delta table to S3 bucket.
   backup:
     enabled: false
-    version: v4.0.0
+    version: v4.6.0
     image: ghcr.io/controlplane-com/manticore-orchestrator/manticore-cpln-backup
-    cloudAccountName: kintsugi-aws-dev
-    s3Bucket: address-validation-manticore-backup    # S3 bucket for backups
+    cloudAccountName: my-backup-cloud-account
+    s3Bucket: my-backup-bucket    # S3 bucket for backups
     s3Policy:                     # IAM policies for S3 access
-      - manticore_search_s3_bucket_access_policy          # Custom policy created in S3 setup instructions
-    s3Region: us-west-2
-    dataSet: addresses_us       # Data set to back up (must be delta)
+      - my-backup-policy          # Custom policy created in S3 setup instructions
+    s3Region: us-east-1
+    dataSet: addresses            # Data set to back up
     prefix: manticore-backups     # S3 prefix/folder for backups
     schedules: [
-      {"table":"addresses_us","type":"delta","schedule":"0 2 * * *"},     # Daily at 2am UTC
-      {"table":"addresses_us","type":"main","schedule":"0 2 1 * *"}       # Monthly full backup on 1st at 2am UTC
+      {"table":"addresses","type":"delta","schedule":"0 2 * * *"},     # Daily at 2am UTC
+      {"table":"addresses","type":"main","schedule":"0 2 1 * *"}       # Monthly full backup on 1st at 2am UTC
       ]
     activeDeadlineSeconds: 14400  # Max job runtime (seconds, default 4 hours)
     resources:
@@ -264,7 +206,7 @@ loadTest:
 
   # Full JSON body for /search endpoint
   query:
-    index: addresses_us
+    index: addresses
     query:
       match:
         "*": "test"
