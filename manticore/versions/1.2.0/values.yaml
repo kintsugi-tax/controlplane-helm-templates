@@ -3,11 +3,11 @@
 # =============================================================================
 # See README.md for Cloud Account and IAM policy setup instructions.
 buckets:
-  cloudAccountName: my-cloud-account    # Name of your configured Cloud Account
+  cloudAccountName: kintsugi-aws-dev    # Name of your configured Cloud Account
   awsPolicyRefs:                        # IAM policies for S3 access
     - aws::AmazonS3ReadOnlyAccess       # Note: if using a custom policy, omit the aws:: prefix as this is only for AWS managed policies
-  awsRegion: us-east-1                  # Region of your S3 bucket
-  sourceBucket: my-bucket               # S3 bucket containing files to import
+  awsRegion: us-west-2                  # Region of your S3 bucket
+  sourceBucket: manticore-imports       # S3 bucket containing files to import
 
 # =============================================================================
 # Tables Configuration
@@ -17,7 +17,7 @@ buckets:
 tables:
   - name: addresses
     csvPath:
-      - manticore-imports/addresses/data.csv
+      - addresses_small.tsv
     config:
       haStrategy: noerrors
       agentRetryCount: 3
@@ -29,26 +29,40 @@ tables:
       hasHeader: true
     schema:
       columns:
-        - name: address_id
-          type: attr_uint
-        - name: street_number
-          type: attr_uint
-        - name: street_name
+        - name: record_hash
+          type: attr_string
+        - name: number
+          type: attr_string
+        - name: street
+          type: field
+        - name: street2
           type: field
         - name: city
           type: field
-        - name: county
-          type: field
         - name: state
-          type: field
-        - name: postal_code
-          type: field
+          type: attr_string
         - name: country
+          type: attr_string
+        - name: county
           type: field
         - name: latitude
           type: attr_float
         - name: longitude
           type: attr_float
+        - name: postal_code
+          type: attr_string
+        - name: address
+          type: field
+        - name: full_address
+          type: field
+        - name: created_at
+          type: attr_timestamp
+        - name: is_unincorporated
+          type: attr_bool
+        - name: source
+          type: attr_string
+        - name: updated_at
+          type: attr_timestamp
 
 # =============================================================================
 # Manticore Search Configuration
@@ -56,6 +70,7 @@ tables:
 manticore:
   image: manticoresearch/manticore:15.1.0
   clusterName: manticore          # Galera cluster name
+  allowExternalAccess: true       # true = Manticore HTTP/MySQL ports reachable externally; false = internal only
   resources:
     cpu: 4
     memory: 8Gi
@@ -115,6 +130,7 @@ orchestrator:
     resources:
       cpu: 0.25
       memory: 256Mi
+    allowExternalAccess: true
     autoscaling:
       maxScale: 3
       minScale: 2
@@ -126,7 +142,7 @@ orchestrator:
     version: v5.0.0
     image: ghcr.io/controlplane-com/manticore-orchestrator/manticore-cpln-agent
     # REQUIRED: Generate with `openssl rand -base64 32`
-    token: "6Gl5uO9KkKAh1u+ymoBW98WCtjTFpljuhpLdKb+tNAA="
+    token: ""
     resources:
       cpu: 250m
       minCpu: 100m
@@ -158,13 +174,14 @@ orchestrator:
     enabled: false
     version: v5.0.0
     image: ghcr.io/controlplane-com/manticore-orchestrator/manticore-cpln-backup
-    cloudAccountName: my-backup-cloud-account
-    s3Bucket: my-backup-bucket    # S3 bucket for backups
+    cloudAccountName: kintsugi-aws-dev
+    s3Bucket: address-validation-manticore-backup    # S3 bucket for backups
     s3Policy:                     # IAM policies for S3 access
-      - my-backup-policy          # Custom policy created in S3 setup instructions
-    s3Region: us-east-1
+      - manticore_search_s3_bucket_access_policy         # Custom policy created in S3 setup instructions
+    s3Region: us-west-2
     dataSet: addresses            # Data set to back up
     prefix: manticore-backups     # S3 prefix/folder for backups
+    allowExternalAccess: true
     schedules: [
       {"table":"addresses","type":"delta","schedule":"0 2 * * *"},     # Daily at 2am UTC
       {"table":"addresses","type":"main","schedule":"0 2 1 * *"}       # Monthly full backup on 1st at 2am UTC
@@ -192,7 +209,6 @@ loadTest:
   resources:
     cpu: 0.5
     memory: 512Mi
-
   vus: 10                         # Virtual users
   duration: "5m"                  # Test duration (e.g., 30s, 5m, 1h)
   rps: null                       # Target RPS (null = unlimited)
@@ -214,7 +230,7 @@ loadTest:
       match:
         "*": "test"
     limit: 10
-
+  allowExternalAccess: true
   thresholds:
     p95ResponseTime: 500          # ms
     errorRate: 0.01               # 1%
