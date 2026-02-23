@@ -104,7 +104,7 @@ manticore:
 # Orchestrator Configuration
 # =============================================================================
 orchestrator:
-  version: v5.0.0
+  version: v5.0.1
   image: ghcr.io/controlplane-com/manticore-orchestrator/manticore-cpln-api
   logLevel: debug                 # debug, info, warn, error
   resources:
@@ -122,7 +122,7 @@ orchestrator:
 
   # Orchestrator API
   api:
-    version: v5.0.0
+    version: v5.0.1
     image: ghcr.io/controlplane-com/manticore-orchestrator/manticore-cpln-api
     logLevel: debug
     importPollInterval: 30s
@@ -139,7 +139,7 @@ orchestrator:
 
   # Agent sidecar
   agent:
-    version: v5.0.0
+    version: v5.0.1
     image: ghcr.io/controlplane-com/manticore-orchestrator/manticore-cpln-agent
     # REQUIRED: Generate with `openssl rand -base64 32`
     token: ""
@@ -157,7 +157,7 @@ orchestrator:
 
   # Web UI - See README.md "Authentication" section for security notes
   ui:
-    version: v5.0.0
+    version: v5.0.1
     image: ghcr.io/controlplane-com/manticore-orchestrator/manticore-cpln-ui
     resources:
       cpu: 0.25
@@ -172,7 +172,7 @@ orchestrator:
   # Backup Configuration (Optional) - Cron job runs logical backup on delta table to S3 bucket.
   backup:
     enabled: false
-    version: v5.0.0
+    version: v5.0.1
     image: ghcr.io/controlplane-com/manticore-orchestrator/manticore-cpln-backup
     cloudAccountName: kintsugi-aws-dev
     s3Bucket: address-validation-manticore-backup    # S3 bucket for backups
