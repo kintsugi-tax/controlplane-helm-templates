@@ -126,7 +126,7 @@ orchestrator:
     version: v5.0.0
     image: ghcr.io/controlplane-com/manticore-orchestrator/manticore-cpln-agent
     # REQUIRED: Generate with `openssl rand -base64 32`
-    token: "6Gl5uO9KkKAh1u+ymoBW98WCtjTFpljuhpLdKb+tNAA="
+    token: ""
     resources:
       cpu: 250m
       minCpu: 100m
