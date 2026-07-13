@@ -21,7 +21,7 @@ on:
 
 jobs:
   setup:
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-2x
     outputs:
       version_dirs: ${{ steps.charts.outputs.version_dirs }}
       charts: ${{ steps.charts.outputs.charts }}
@@ -58,7 +58,7 @@ jobs:
 
   publish:
     needs: [setup, validate]
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-2x
     steps:
       - uses: actions/checkout@v4
         with:
